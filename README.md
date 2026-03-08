@@ -8,6 +8,7 @@ Successor of the StS1 mod with the same name. This is a compilation of small qua
 - Adds a `Restart Room` button to the pause menu to quickly reset combat (this will become it's own mod)
 - Make toches clickable to extiguish and light them (cany0udance)
 - Show ascenscion effects when hovering the character portrait in the top bar (kiooeht)
+- Increase animation speed of shuffling discard into draw pile (pandemonium)
 
 ## Known issues
 - Restart room button should be hidden under certain circumstances
