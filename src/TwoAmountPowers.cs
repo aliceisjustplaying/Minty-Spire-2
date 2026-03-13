@@ -104,6 +104,7 @@ static class TwoAmountPowers
     static void AddSecondAmountLabel(NPower __instance)
     {
         var amount1Label = __instance.GetNode<MegaLabel>("%AmountLabel");
+        if (__instance.HasNode("Amount2Label")) return;
         var amount2Label = Amount2Labels.GetValue(__instance, _ => (MegaLabel) amount1Label.Duplicate());
         amount2Label.Name = "Amount2Label";
         amount2Label.UniqueNameInOwner = true;
