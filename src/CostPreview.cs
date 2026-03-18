@@ -39,7 +39,7 @@ class CostPreview
     {
         static void Prefix(NMerchantSlot __instance)
         {
-            if (!initDone)
+            if (!initDone || !GodotObject.IsInstanceValid(CostPreviewLabel))
                 init();
 
             if (__instance.Player is not Player player)
