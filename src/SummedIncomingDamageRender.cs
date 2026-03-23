@@ -186,12 +186,9 @@ public static class SummedIncomingDamageRender
         {
             if (!CardTurnEndInspector.DoesTurnEndInHandCallDamage(card))
                 continue;
-            
-            foreach (var cvar in card.CanonicalVars)
-            {
-                if (cvar is HpLossVar or DamageVar)
-                    totalDamage += cvar.IntValue;
-            }
+
+            // Ignoring HP loss cards here
+            totalDamage += card.CanonicalVars.OfType<DamageVar>().Sum(cvar => cvar.IntValue);
         }
 
         return totalDamage;
