@@ -135,7 +135,7 @@ public static class SummedIncomingDamageRender
         if (label == null || !bar.Visible)
             return;
 
-        if (CombatManager.Instance.IsEnemyTurnStarted)
+        if (!Config.ShowIncomingDamage || CombatManager.Instance.IsEnemyTurnStarted)
         {
             label.Visible = false;
             return;
@@ -174,6 +174,8 @@ public static class SummedIncomingDamageRender
     
     private static int GetIncomingCardDamage(Player player)
     {
+        if (!Config.ShowIncomingDamage) return 0;
+        
         var handPile = CardPile.Get(PileType.Hand, player);
         if (handPile == null)
             return 0;
@@ -200,6 +202,7 @@ public static class SummedIncomingDamageRender
     [HarmonyPatch(typeof(CardPile), "InvokeContentsChanged")]
     private static void CatchHandChange(CardPile __instance)
     {
+        if (!Config.ShowIncomingDamage) return;
         if (__instance is { Type: PileType.Hand })
         {
             var player = LocalContext.GetMe(RunManager.Instance.State);

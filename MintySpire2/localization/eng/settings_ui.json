@@ -1,5 +1,6 @@
 {
   "MINTYSPIRE2.mod_title": "Minty Spire 2",
   "MINTYSPIRE2-COMBAT.title": "Combat",
-  "EQUALSTARTERDECKS-SHUFFLE_SPEED.title": "Discard to draw shuffle speed"
+  "MINTYSPIRE2-SHUFFLE_SPEED.title": "Discard to draw shuffle speed",
+  "MINTYSPIRE2-SHOW_INCOMING_DAMAGE.title": "Display incoming damage next to HP bar"
 }
