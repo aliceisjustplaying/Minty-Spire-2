@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Combat.History.Entries;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Hooks;
+using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Nodes.Combat;
@@ -93,18 +94,35 @@ static class TwoAmountPowers
         public static implicit operator Amount2Data(int amount2) => new(amount2: amount2.ToString());
         public static implicit operator Amount2Data(string amount2) => new(amount2: amount2);
     }
-    
-    private static readonly ConditionalWeakTable<NPower, MegaLabel> Amount2Labels = new();
 
     [HarmonyPatch(nameof(NPower._Ready))]
-    [HarmonyPrefix]
-    static void AddSecondAmountLabel(NPower __instance)
+    [HarmonyTranspiler]
+    // Insert this patch after BaseLib, so BaseLib's patch to add an amount2 label takes priority
+    [HarmonyAfter(BaseLib.MainFile.ModId)]
+    static IEnumerable<CodeInstruction> AddSecondAmountLabel(IEnumerable<CodeInstruction> instructions)
+    {
+        var codeMatcher = new CodeMatcher(instructions);
+
+        codeMatcher
+            .MatchStartForward(
+                CodeMatch.Calls(typeof(NPower).Method("Reload"))
+            )
+            .ThrowIfInvalid("Failed to find this.Reload()")
+            .InsertAndAdvance(
+                CodeInstruction.LoadArgument(0),
+                CodeInstruction.Call<NPower>(nPower => AddSecondAmountLabel(nPower))
+            );
+
+        return codeMatcher.Instructions();
+    }
+    
+    private static void AddSecondAmountLabel(NPower __instance)
     {
         var amount1Label = __instance.GetNode<MegaLabel>("%AmountLabel");
         if (__instance.HasNode("Amount2Label")) return;
-        var amount2Label = Amount2Labels.GetValue(__instance, _ => (MegaLabel) amount1Label.Duplicate());
+        var amount2Label = (MegaLabel)amount1Label.Duplicate();
         amount2Label.Name = "Amount2Label";
-        amount2Label.UniqueNameInOwner = true;
+        amount2Label.UniqueNameInOwner = false;
         amount2Label.Visible = false;
         __instance.AddChild(amount2Label);
         __instance.MoveChild(amount2Label, amount1Label.GetIndex());
@@ -115,8 +133,8 @@ static class TwoAmountPowers
     static void SetSecondAmountText(NPower __instance)
     {
         if (__instance._model == null) return;
-        
-        var amount2Label = Amount2Labels.GetOrCreateValue(__instance);
+
+        var amount2Label = __instance.GetNode<MegaLabel>("Amount2Label");
         amount2Label.Visible = false;
         DisplaySecondAmount.TryGetValue(__instance.Model.GetType(), out var func);
         if (func != null) {
