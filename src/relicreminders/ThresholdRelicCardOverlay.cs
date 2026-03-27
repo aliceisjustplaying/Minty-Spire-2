@@ -23,35 +23,36 @@ public static class ThresholdRelicCardOverlay
     private const string IconContainerNodeName = "MintyThresholdRelicIcons";
     private static readonly WeakNodeRegistry<NCard> TrackedCards = new();
 
-    private const string PenNibIconPath = "res://images/atlases/relic_atlas.sprites/pen_nib.tres";
-    private const string PenNibOutlinePath = "res://images/atlases/relic_outline_atlas.sprites/pen_nib.tres";
+    [ThreadStatic]
+    private static List<Texture2D>? _iconBuffer;
 
-    private const string TuningForkIconPath = "res://images/atlases/relic_atlas.sprites/tuning_fork.tres";
-    private const string TuningForkOutlinePath = "res://images/atlases/relic_outline_atlas.sprites/tuning_fork.tres";
-
-    private const string GalacticDustIconPath = "res://images/atlases/relic_atlas.sprites/galactic_dust.tres";
-    private const string GalacticDustOutlinePath = "res://images/atlases/relic_outline_atlas.sprites/galactic_dust.tres";
-
-    /// <summary>
-    ///     UpdateVisuals is called after pile assignment is finalised, so pileType is reliable here.
-    /// </summary>
     [HarmonyPatch(typeof(NCard), "UpdateVisuals")]
     [HarmonyPostfix]
-    public static void UpdateVisuals_Postfix(NCard __instance, PileType pileType)
+    private static void UpdateVisuals_Postfix(NCard __instance, PileType pileType, CardPreviewMode previewMode)
     {
-        var me =  LocalContext.GetMe(RunManager.Instance?.State);
-        if (me != null && me.Relics.Any(r => r is PenNib or TuningFork or GalacticDust))
+        TrackedCards.Register(__instance);
+
+        if (pileType != PileType.Hand)
         {
-            TrackedCards.Register(__instance);
-            RefreshCardOverlay(__instance, pileType == PileType.Hand);
+            HideIcons(__instance);
+            TrackedCards.Unregister(__instance);
         }
     }
 
+    [HarmonyPatch(typeof(CardPile), "InvokeContentsChanged")]
+    [HarmonyPostfix]
+    private static void CatchHandChange(CardPile __instance)
+    {
+        if (__instance.Type == PileType.Hand)
+            RefreshTrackedCardOverlays();
+    }
+
     [HarmonyPatch]
-    class CatchCardPlays
+    private static class CatchRefreshEvents
     {
         [HarmonyTargetMethods]
-        static IEnumerable<MethodBase> TargetMethods() {
+        static IEnumerable<MethodBase> TargetMethods()
+        {
             yield return AccessTools.Method(typeof(PenNib), nameof(PenNib.AfterCardPlayed));
             yield return AccessTools.Method(typeof(TuningFork), nameof(TuningFork.AfterCardPlayed));
             yield return AccessTools.Method(typeof(GalacticDust), nameof(GalacticDust.AfterStarsSpent));
@@ -66,32 +67,49 @@ public static class ThresholdRelicCardOverlay
     public static void ShouldGlowGoldInternal_Postfix(CardModel __instance, ref bool __result)
     {
         if (!__result)
-            __result = GetActiveIconLayers(__instance).Count > 0;
+            __result = HasAnyActiveThresholdIcon(__instance, GetThresholdRelics());
     }
-
 
     private static void RefreshTrackedCardOverlays()
     {
-        TrackedCards.ForEachLive(card => RefreshCardOverlay(card, IsInHand(card.Model)));
+        var relics = GetThresholdRelics();
+        TrackedCards.ForEachLive(card => RefreshCardOverlay(card, relics));
     }
 
-    private static void RefreshCardOverlay(NCard card, bool isInHand)
+    private static void RefreshCardOverlay(NCard card, in ThresholdRelics relics)
     {
         var model = card.Model;
-        if (model == null || !isInHand)
+        if (model == null || !IsInHand(model))
         {
-            RemoveIconsIfExist(card);
+            HideIcons(card);
             return;
         }
 
-        var iconLayers = GetActiveIconLayers(model);
-        if (iconLayers.Count == 0)
+        var icons = GetIconBuffer();
+        CollectActiveIcons(model, relics, icons);
+
+        if (icons.Count == 0)
         {
-            RemoveIconsIfExist(card);
+            HideIcons(card);
             return;
         }
 
-        AddIcons(card, iconLayers);
+        var container = EnsureIconContainer(card, icons.Count);
+        if (container == null)
+            return;
+
+        for (var i = 0; i < icons.Count; i++)
+            SetIcon(container.GetChild<TextureRect>(i), icons[i]);
+
+        for (var i = icons.Count; i < container.GetChildCount(); i++)
+            SetIcon(container.GetChild<TextureRect>(i), null);
+
+        container.Visible = true;
+    }
+
+    private static List<Texture2D> GetIconBuffer()
+    {
+        return _iconBuffer ??= new List<Texture2D>(4);
     }
 
     private static bool IsInHand(CardModel? card)
@@ -106,26 +124,44 @@ public static class ThresholdRelicCardOverlay
         return PileType.Hand.GetPile(me).Cards.Contains(card);
     }
 
-    private static List<IconLayerData> GetActiveIconLayers(CardModel card)
+    private static bool HasAnyActiveThresholdIcon(CardModel card, in ThresholdRelics relics)
     {
-        var iconLayers = new List<IconLayerData>(3);
+        if (!relics.HasAny)
+            return false;
 
-        // TODO: Optimize this a bit 
-        if (card.Type == CardType.Attack && GetRelic<PenNib>()?.Status == RelicStatus.Active)
-            iconLayers.Add(new IconLayerData(PenNibIconPath, PenNibOutlinePath));
-
-        if (card is { Type: CardType.Skill, GainsBlock: true } && GetRelic<TuningFork>()?.Status == RelicStatus.Active)
-            iconLayers.Add(new IconLayerData(TuningForkIconPath, TuningForkOutlinePath));
-
-        if (ShouldShowGalacticDust(card))
-            iconLayers.Add(new IconLayerData(GalacticDustIconPath, GalacticDustOutlinePath));
-
-        return iconLayers;
+        var icons = GetIconBuffer();
+        CollectActiveIcons(card, relics, icons);
+        return icons.Count > 0;
     }
 
-    private static bool ShouldShowGalacticDust(CardModel card)
+    private static void CollectActiveIcons(CardModel card, in ThresholdRelics relics, List<Texture2D> icons)
     {
-        var galacticDust = GetRelic<GalacticDust>();
+        icons.Clear();
+
+        if (!relics.HasAny)
+            return;
+
+        var penNib = relics.PenNib;
+        if (card.Type == CardType.Attack && penNib?.Status == RelicStatus.Active)
+        {
+            icons.Add(penNib.Icon);
+        }
+
+        var tuningFork = relics.TuningFork;
+        if (card.Type == CardType.Skill && tuningFork?.Status == RelicStatus.Active)
+        {
+            icons.Add(tuningFork.Icon);
+        }
+
+        var galacticDust = relics.GalacticDust;
+        if (ShouldShowGalacticDust(card, galacticDust))
+        {
+            icons.Add(galacticDust!.Icon);
+        }
+    }
+
+    private static bool ShouldShowGalacticDust(CardModel card, GalacticDust? galacticDust)
+    {
         if (galacticDust == null)
             return false;
 
@@ -136,50 +172,43 @@ public static class ThresholdRelicCardOverlay
         return (galacticDust.StarsSpent % threshold) + card.CurrentStarCost >= threshold;
     }
 
-    private static void AddIcons(NCard card, IReadOnlyList<IconLayerData> iconLayers)
+    private static Control? EnsureIconContainer(NCard card, int requiredIconSlots)
     {
-        RemoveIconsIfExist(card);
+        var body = card.Body;
 
-        var container = new Control
+        var container = body.GetNodeOrNull<Control>(IconContainerNodeName);
+        if (container == null)
         {
-            Name = IconContainerNodeName,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            AnchorLeft = 1f,
-            AnchorRight = 1f,
-            AnchorTop = 0f,
-            AnchorBottom = 0f,
-        };
+            container = new Control
+            {
+                Name = IconContainerNodeName,
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                AnchorLeft = 1f,
+                AnchorRight = 1f,
+                AnchorTop = 0f,
+                AnchorBottom = 0f,
+                Visible = false,
+            };
 
-        for (var i = 0; i < iconLayers.Count; i++)
-        {
-            var iconContainer = MakeIconContainer(i);
-            var iconLayer = iconLayers[i];
-
-            // TODO: Optimize?
-            var iconTexture = GD.Load<Texture2D>(iconLayer.IconPath);
-            var outlineTexture = GD.Load<Texture2D>(iconLayer.OutlinePath);
-            
-            if (outlineTexture != null)
-                iconContainer.AddChild(MakeLayer(outlineTexture, Colors.Black));
-
-            iconContainer.AddChild(MakeLayer(iconTexture));
-            container.AddChild(iconContainer);
+            body.AddChild(container);
         }
 
-        if (container.GetChildCount() > 0)
-            card.Body.AddChild(container);
-        else
-            container.QueueFree();
+        while (container.GetChildCount() < requiredIconSlots)
+            container.AddChild(MakeIconSlot(container.GetChildCount()));
+
+        return container;
     }
 
-    private static Control MakeIconContainer(int index)
+    private static TextureRect MakeIconSlot(int index)
     {
         const float horizontalSpacing = 32f;
         var horizontalOffset = index * horizontalSpacing;
 
-        return new Control
+        return new TextureRect
         {
             MouseFilter = Control.MouseFilterEnum.Ignore,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             AnchorLeft = 1f,
             AnchorRight = 1f,
             AnchorTop = 0f,
@@ -188,23 +217,59 @@ public static class ThresholdRelicCardOverlay
             OffsetRight = 160f - horizontalOffset,
             OffsetTop = -218f,
             OffsetBottom = -170f,
+            Visible = false,
         };
     }
 
-    private static TextureRect MakeLayer(Texture2D texture, Color? modulate = null) => new()
+    private static void SetIcon(TextureRect iconRect, Texture2D? texture)
     {
-        Texture = texture,
-        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-        MouseFilter = Control.MouseFilterEnum.Ignore,
-        AnchorRight = 1f,
-        AnchorBottom = 1f,
-        SelfModulate = modulate ?? Colors.White,
-    };
+        iconRect.Texture = texture;
+        iconRect.Visible = texture != null;
+    }
 
-    private static void RemoveIconsIfExist(NCard card) => card.Body?.GetNodeOrNull(IconContainerNodeName)?.Free();
+    private static void HideIcons(NCard card)
+    {
+        var container = card.Body?.GetNodeOrNull<Control>(IconContainerNodeName);
+        if (container == null)
+            return;
 
-    private static TRelic? GetRelic<TRelic>() where TRelic : RelicModel => LocalContext.GetMe(RunManager.Instance?.State)?.GetRelic<TRelic>();
+        container.Visible = false;
 
-    private readonly record struct IconLayerData(string IconPath, string OutlinePath);
+        for (var i = 0; i < container.GetChildCount(); i++)
+            SetIcon(container.GetChild<TextureRect>(i), null);
+    }
+
+    private static ThresholdRelics GetThresholdRelics()
+    {
+        var me = LocalContext.GetMe(RunManager.Instance?.State);
+        if (me == null)
+            return default;
+
+        PenNib? penNib = null;
+        TuningFork? tuningFork = null;
+        GalacticDust? galacticDust = null;
+
+        foreach (var relic in me.Relics)
+        {
+            switch (relic)
+            {
+                case PenNib pn:
+                    penNib = pn;
+                    break;
+                case TuningFork tf:
+                    tuningFork = tf;
+                    break;
+                case GalacticDust gd:
+                    galacticDust = gd;
+                    break;
+            }
+        }
+
+        return new ThresholdRelics(penNib, tuningFork, galacticDust);
+    }
+
+    private readonly record struct ThresholdRelics(PenNib? PenNib, TuningFork? TuningFork, GalacticDust? GalacticDust)
+    {
+        public bool HasAny => PenNib != null || TuningFork != null || GalacticDust != null;
+    }
 }
