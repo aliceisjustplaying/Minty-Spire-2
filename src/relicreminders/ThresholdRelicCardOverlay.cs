@@ -22,8 +22,7 @@ public static class ThresholdRelicCardOverlay
 {
     private const string IconContainerNodeName = "MintyThresholdRelicIcons";
     private static readonly WeakNodeRegistry<NCard> TrackedCards = new();
-
-    [ThreadStatic]
+    
     private static List<Texture2D>? _iconBuffer;
 
     [HarmonyPatch(typeof(NCard), "UpdateVisuals")]
@@ -35,7 +34,6 @@ public static class ThresholdRelicCardOverlay
         if (pileType != PileType.Hand)
         {
             HideIcons(__instance);
-            TrackedCards.Unregister(__instance);
         }
     }
 
@@ -44,19 +42,22 @@ public static class ThresholdRelicCardOverlay
     private static void CatchHandChange(CardPile __instance)
     {
         if (__instance.Type == PileType.Hand)
+        {
             RefreshTrackedCardOverlays();
+        }
     }
 
     [HarmonyPatch]
     private static class CatchRefreshEvents
     {
         [HarmonyTargetMethods]
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return AccessTools.Method(typeof(PenNib), nameof(PenNib.AfterCardPlayed));
-            yield return AccessTools.Method(typeof(TuningFork), nameof(TuningFork.AfterCardPlayed));
-            yield return AccessTools.Method(typeof(GalacticDust), nameof(GalacticDust.AfterStarsSpent));
-        }
+        static IEnumerable<MethodBase> TargetMethods() =>
+            [
+                typeof(PenNib).Method(nameof(PenNib.AfterCardPlayed)),
+                typeof(Nunchaku).Method(nameof(Nunchaku.AfterCardPlayed)),
+                typeof(TuningFork).Method(nameof(TuningFork.AfterCardPlayed)),
+                typeof(GalacticDust).Method(nameof(GalacticDust.AfterStarsSpent)),
+            ];
 
         [HarmonyPostfix]
         static void CatchAfterCardPlayed() => RefreshTrackedCardOverlays();
@@ -145,6 +146,12 @@ public static class ThresholdRelicCardOverlay
         if (card.Type == CardType.Attack && penNib?.Status == RelicStatus.Active)
         {
             icons.Add(penNib.Icon);
+        }
+
+        var nunchaku = relics.Nunchaku;
+        if (card.Type == CardType.Attack && nunchaku?.Status == RelicStatus.Active)
+        {
+            icons.Add(nunchaku.Icon);
         }
 
         var tuningFork = relics.TuningFork;
@@ -246,6 +253,7 @@ public static class ThresholdRelicCardOverlay
             return default;
 
         PenNib? penNib = null;
+        Nunchaku? nunchaku = null;
         TuningFork? tuningFork = null;
         GalacticDust? galacticDust = null;
 
@@ -256,6 +264,9 @@ public static class ThresholdRelicCardOverlay
                 case PenNib pn:
                     penNib = pn;
                     break;
+                case Nunchaku n:
+                    nunchaku = n;
+                    break;
                 case TuningFork tf:
                     tuningFork = tf;
                     break;
@@ -265,11 +276,11 @@ public static class ThresholdRelicCardOverlay
             }
         }
 
-        return new ThresholdRelics(penNib, tuningFork, galacticDust);
+        return new ThresholdRelics(penNib, nunchaku, tuningFork, galacticDust);
     }
 
-    private readonly record struct ThresholdRelics(PenNib? PenNib, TuningFork? TuningFork, GalacticDust? GalacticDust)
+    private readonly record struct ThresholdRelics(PenNib? PenNib, Nunchaku? Nunchaku, TuningFork? TuningFork, GalacticDust? GalacticDust)
     {
-        public bool HasAny => PenNib != null || TuningFork != null || GalacticDust != null;
+        public bool HasAny => PenNib != null || Nunchaku != null || TuningFork != null || GalacticDust != null;
     }
 }
