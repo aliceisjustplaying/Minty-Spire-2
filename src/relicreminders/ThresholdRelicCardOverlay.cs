@@ -44,7 +44,6 @@ public static class ThresholdRelicCardOverlay
     [HarmonyPostfix]
     static void CatchCombatEnd()
     {
-        MainFile.Logger.Info("Cards are being cleared");
         TrackedCards.Clear();
         var me = LocalContext.GetMe(RunManager.Instance?.State);
         if (me != null) me.RelicObtained -= IdentifyThresholdRelic;
@@ -99,7 +98,6 @@ public static class ThresholdRelicCardOverlay
 
     private static void RefreshTrackedCardOverlays()
     {
-        MainFile.Logger.Info($"Tracked cards: {TrackedCards.Count}");
         foreach (var card in TrackedCards)
         {
             RefreshCardOverlay(card);
