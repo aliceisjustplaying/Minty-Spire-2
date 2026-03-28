@@ -234,6 +234,7 @@ public static class ThresholdRelicCardOverlay
 
     private static void HideIcons(NCard card)
     {
+        if (!GodotObject.IsInstanceValid(card)) return;
         var container = card.Body?.GetNodeOrNull<Control>(IconContainerNodeName);
         if (container == null)
             return;
