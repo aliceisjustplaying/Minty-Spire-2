@@ -47,30 +47,23 @@ static class HistoryCourseTooltip
         }
     }
 
-    [HarmonyPatch(typeof(AbstractModel), nameof(AbstractModel.AfterCardPlayed))]
-    [HarmonyPostfix]
-    static void StartPulse(AbstractModel __instance, CardPlay cardPlay)
-    {
-        if (__instance is not HistoryCourse historyCourse) return;
-
-        if (IsAppropriateCard(historyCourse, cardPlay)) {
-            historyCourse.Status = RelicStatus.Active;
-        }
-    }
-
     [HarmonyPatch(typeof(HistoryCourse), nameof(HistoryCourse.AfterPlayerTurnStartEarly))]
     [HarmonyPostfix]
     static void StopPulseOnTurnStart(HistoryCourse __instance)
     {
         __instance.Status = RelicStatus.Normal;
     }
-
-    [HarmonyPatch(typeof(AbstractModel), nameof(AbstractModel.AfterCombatEnd))]
-    [HarmonyPostfix]
-    static void StopPulseOnCombatEnd(AbstractModel __instance)
+    
+    public static void HistoryStartPulse(HistoryCourse? historyCourse, CardPlay cardPlay)
     {
-        if (__instance is not HistoryCourse historyCourse) return;
-        
-        historyCourse.Status = RelicStatus.Normal;
+        if (historyCourse != null && IsAppropriateCard(historyCourse, cardPlay)) {
+            historyCourse.Status = RelicStatus.Active;
+        }
+    }
+
+    public static void HistoryStopPulseOnCombatEnd(HistoryCourse? historyCourse)
+    {
+        if (historyCourse != null)
+            historyCourse.Status = RelicStatus.Normal;
     }
 }

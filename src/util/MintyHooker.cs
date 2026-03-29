@@ -5,7 +5,10 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Relics;
+using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.ValueProps;
+using MintySpire2.relicreminders;
 using MintySpire2.relicreminders.endturnbutton;
 
 namespace MintySpire2.util;
@@ -14,12 +17,14 @@ public class MintyHooker : AbstractModel
 {
     public override bool ShouldReceiveCombatHooks => true;
 
+    // Rest site render
     public override Task AfterCurrentHpChanged(Creature creature, decimal delta)
     {
         RestHPRender.CatchHPChange(creature);
         return Task.CompletedTask;
     }
 
+    // End turn relics
     public override Task AfterBlockGained(Creature creature, decimal amount, ValueProp props, CardModel? cardSource)
     {
         if(LocalContext.IsMe(creature))
@@ -62,6 +67,19 @@ public class MintyHooker : AbstractModel
     {
         if(side == CombatSide.Player)
             EndTurnRelicReminderService.NotifyRemindersMayHaveChanged();
+        return Task.CompletedTask;
+    }
+
+    // History Course
+    public override Task AfterCardPlayed(PlayerChoiceContext context, CardPlay cardPlay)
+    {
+        HistoryCourseTooltip.HistoryStartPulse(Wiz.p()?.GetRelic<HistoryCourse>(), cardPlay);
+        return Task.CompletedTask;
+    }
+
+    public override Task AfterCombatEnd(CombatRoom room)
+    {
+        HistoryCourseTooltip.HistoryStopPulseOnCombatEnd(Wiz.p()?.GetRelic<HistoryCourse>());
         return Task.CompletedTask;
     }
 }
