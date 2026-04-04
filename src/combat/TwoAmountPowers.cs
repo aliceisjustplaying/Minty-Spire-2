@@ -98,7 +98,7 @@ static class TwoAmountPowers
     [HarmonyPatch(nameof(NPower._Ready))]
     [HarmonyTranspiler]
     // Insert this patch after BaseLib, so BaseLib's patch to add an amount2 label takes priority
-    [HarmonyAfter(BaseLib.MainFile.ModId)]
+    [HarmonyAfter(BaseLib.BaseLibMain.ModId)]
     static IEnumerable<CodeInstruction> AddSecondAmountLabel(IEnumerable<CodeInstruction> instructions)
     {
         var codeMatcher = new CodeMatcher(instructions);
@@ -136,7 +136,7 @@ static class TwoAmountPowers
 
         var amount2Label = __instance.GetNode<MegaLabel>("Amount2Label");
         // If ITwoAmountPower exists, let BaseLib handle amount2Label visibility
-        var baselib = ModManager.GetLoadedMods().First(mod => mod.manifest?.id == BaseLib.MainFile.ModId).assembly;
+        var baselib = ModManager.GetLoadedMods().First(mod => mod.manifest?.id == BaseLib.BaseLibMain.ModId).assembly;
         if (baselib?.GetType("BaseLib.Abstracts.ITwoAmountPower") == null) {
             amount2Label.Visible = false;
         }
