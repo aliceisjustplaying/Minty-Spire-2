@@ -10,7 +10,7 @@ namespace MintySpire2.util;
 
 public static class CardTurnEndInspector
 {
-    private static readonly Dictionary<Type, bool> CardCache = new();
+    private static readonly Dictionary<Type, bool> HpLossCache = new();
     private static readonly OpCode[] OneByteOpCodes = new OpCode[0x100];
     private static readonly OpCode[] TwoByteOpCodes = new OpCode[0x100];
 
@@ -28,11 +28,11 @@ public static class CardTurnEndInspector
         }
     }
 
-    public static bool DoesTurnEndInHandCallDamage(CardModel card)
+    public static bool DoesTurnEndInHandCauseHpLoss(CardModel card)
     {
         var cardType = card.GetType();
         
-        if(CardCache.TryGetValue(cardType, out var result)) return result;
+        if (HpLossCache.TryGetValue(cardType, out var result)) return result;
 
         // Fast fail if the card does not even claim to have a hand end effect.
         if (!card.HasTurnEndInHandEffect)
@@ -53,10 +53,15 @@ public static class CardTurnEndInspector
         if (methodToInspect == null)
             return false;
         
-        var doesDamage = CallsTargetMethod(methodToInspect, IsCreatureCmdDamage);
+        var causesHpLoss = CallsTargetMethod(methodToInspect, IsCreatureCmdDamage);
         
-        CardCache.Add(cardType, doesDamage);
-        return doesDamage;
+        HpLossCache.Add(cardType, causesHpLoss);
+        return causesHpLoss;
+    }
+
+    public static bool DoesTurnEndInHandCallDamage(CardModel card)
+    {
+        return DoesTurnEndInHandCauseHpLoss(card);
     }
 
     private static MethodInfo? GetMethodToInspect(MethodInfo originalMethod)
