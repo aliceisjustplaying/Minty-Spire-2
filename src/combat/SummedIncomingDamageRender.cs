@@ -65,6 +65,7 @@ public static class SummedIncomingDamageRender
         var player = LocalContext.GetMe(RunManager.Instance.State);
         if (player != null && __instance._creature?.Player == player)
         {
+            ValidBars.Register(__instance);
             CreateLabelIfNotExist(__instance);
         }
     }
@@ -342,8 +343,9 @@ public static class SummedIncomingDamageRender
 
         var hand = projection.GetProjectedHandCards();
 
-        if (playerCreature.GetPower<PlatingPower>() is { } platingPower)
-            AddProjectedBlock(projection, playerCreature, platingPower.Amount, ValueProp.Unpowered);
+        var platingAmount = playerCreature.GetPowerInstances<PlatingPower>().Sum(power => power.Amount);
+        if (platingAmount > 0)
+            AddProjectedBlock(projection, playerCreature, platingAmount, ValueProp.Unpowered);
 
         if (playerCreature.GetPower<HailstormPower>() is { } hailstormPower)
         {
@@ -671,12 +673,16 @@ public static class SummedIncomingDamageRender
         var hpLossTarget = GetProjectedUnblockedDamageTarget(projection, target, hpLoss, props);
         hpLoss = ApplyProjectedHpLossModifiersAfterOsty(projection, hpLossTarget, hpLoss, props, dealer, cardSource);
 
-        var overkillDamage = projection.ApplyProjectedHpLoss(hpLossTarget, ClampProjectedHpLoss(hpLoss), source);
+        var resolvedHpLoss = ClampProjectedHpLoss(hpLoss);
+        projection.TrackProjectedThreat(hpLossTarget, resolvedHpLoss, source);
+        var overkillDamage = projection.ApplyProjectedHpLoss(hpLossTarget, resolvedHpLoss, source);
         if (hpLossTarget == target || overkillDamage <= 0)
             return;
 
         var overkillHpLoss = ApplyProjectedHpLossModifiersAfterOsty(projection, target, overkillDamage, props, dealer, cardSource);
-        projection.ApplyProjectedHpLoss(target, ClampProjectedHpLoss(overkillHpLoss), source);
+        var resolvedOverkillHpLoss = ClampProjectedHpLoss(overkillHpLoss);
+        projection.TrackProjectedThreat(target, resolvedOverkillHpLoss, source);
+        projection.ApplyProjectedHpLoss(target, resolvedOverkillHpLoss, source);
     }
 
     private static decimal ApplyProjectedHpLossModifiersBeforeOsty(
@@ -826,8 +832,8 @@ public static class SummedIncomingDamageRender
             creature => creature.GetPower<HardenedShellPower>()?.DisplayAmount ?? decimal.MaxValue
         );
 
-        private int playerEnemyDamageTaken;
-        private int playerSelfDamageTaken;
+        private int playerEnemyDamageThreat;
+        private int playerSelfDamageThreat;
         private decimal remainingBeatingRemnantProtection = GetInitialBeatingRemnantProtection(player);
 
         public Creature Player { get; } = player;
@@ -872,7 +878,24 @@ public static class SummedIncomingDamageRender
 
         public void LoseProjectedHp(Creature creature, int amount, ProjectedDamageSource source)
         {
+            TrackProjectedThreat(creature, amount, source);
             ApplyProjectedHpLoss(creature, amount, source);
+        }
+
+        public void TrackProjectedThreat(Creature creature, int amount, ProjectedDamageSource source)
+        {
+            if (amount <= 0 || creature != Player)
+                return;
+
+            switch (source)
+            {
+                case ProjectedDamageSource.Enemy:
+                    playerEnemyDamageThreat += amount;
+                    break;
+                case ProjectedDamageSource.Self:
+                    playerSelfDamageThreat += amount;
+                    break;
+            }
         }
 
         public int ApplyProjectedHpLoss(Creature creature, int amount, ProjectedDamageSource source)
@@ -905,16 +928,6 @@ public static class SummedIncomingDamageRender
 
             if (creature != Player)
                 return;
-
-            switch (source)
-            {
-                case ProjectedDamageSource.Enemy:
-                    playerEnemyDamageTaken += amount;
-                    break;
-                case ProjectedDamageSource.Self:
-                    playerSelfDamageTaken += amount;
-                    break;
-            }
 
             if (remainingBeatingRemnantProtection != decimal.MaxValue)
                 remainingBeatingRemnantProtection = Math.Max(0m, remainingBeatingRemnantProtection - amount);
@@ -978,7 +991,7 @@ public static class SummedIncomingDamageRender
 
         public DamageBreakdown GetDamageBreakdown()
         {
-            return new DamageBreakdown(playerEnemyDamageTaken, playerSelfDamageTaken);
+            return new DamageBreakdown(playerEnemyDamageThreat, playerSelfDamageThreat);
         }
 
         private static decimal GetInitialBeatingRemnantProtection(Creature playerCreature)
