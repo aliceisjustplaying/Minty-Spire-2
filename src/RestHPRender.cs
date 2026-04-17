@@ -17,6 +17,7 @@ namespace MintySpire2;
 public static class RestHPRender
 {
     private const string HealLabelNodeName = "ModHealPreviewLabel";
+    private const string FrozenHealPreviewMetaKey = "MintyFrozenHealPreview";
 
     private static readonly WeakNodeRegistry<NRestSiteButton> ValidButtons = new();
 
@@ -29,6 +30,7 @@ public static class RestHPRender
     {
         if (__instance.Option is not HealRestSiteOption) return;
 
+        ClearFrozenPreview(__instance);
         CreateLabelIfNotExists(__instance);
         UpdateExtraLabel(__instance);
     }
@@ -42,8 +44,23 @@ public static class RestHPRender
     {
         if (__instance.Option is not HealRestSiteOption) return;
 
+        ClearFrozenPreview(__instance);
         CreateLabelIfNotExists(__instance);
         UpdateExtraLabel(__instance);
+    }
+
+    [HarmonyPatch(typeof(NRestSiteButton), "SelectOption")]
+    [HarmonyPrefix]
+    public static void FreezePreviewOnSelect(NRestSiteButton __instance, RestSiteOption option)
+    {
+        if (option is not HealRestSiteOption)
+            return;
+
+        var extra = __instance.FindChild(HealLabelNodeName, true, false) as Label;
+        if (extra == null || string.IsNullOrEmpty(extra.Text))
+            return;
+
+        __instance.SetMeta(FrozenHealPreviewMetaKey, extra.Text);
     }
 
     [HarmonyPatch(typeof(Creature), nameof(Creature.HealInternal))]
@@ -108,6 +125,14 @@ public static class RestHPRender
         var extra = button.FindChild(HealLabelNodeName, true, false) as Label;
         if (extra == null) return;
 
+        if (TryGetFrozenPreview(button, out var frozenPreview))
+        {
+            extra.Text = frozenPreview;
+            extra.Visible = true;
+            ValidButtons.Register(button);
+            return;
+        }
+
         var player = button.Option.Owner;
         if (!LocalContext.IsMe(player))
         {
@@ -127,6 +152,22 @@ public static class RestHPRender
         extra.Visible = true;
 
         ValidButtons.Register(button);
+    }
+
+    private static bool TryGetFrozenPreview(NRestSiteButton button, out string frozenPreview)
+    {
+        frozenPreview = string.Empty;
+        if (!button.HasMeta(FrozenHealPreviewMetaKey))
+            return false;
+
+        frozenPreview = button.GetMeta(FrozenHealPreviewMetaKey).AsString();
+        return !string.IsNullOrEmpty(frozenPreview);
+    }
+
+    private static void ClearFrozenPreview(NRestSiteButton button)
+    {
+        if (button.HasMeta(FrozenHealPreviewMetaKey))
+            button.RemoveMeta(FrozenHealPreviewMetaKey);
     }
 
     /// <summary>
