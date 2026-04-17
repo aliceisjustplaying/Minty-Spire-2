@@ -189,10 +189,15 @@ internal static class IncomingDamageProjector
                 continue;
             }
 
-            if (!CardTurnEndInspector.DoesTurnEndInHandCauseHpLoss(card))
+            var hpLossVars = card.CanonicalVars.OfType<HpLossVar>().ToList();
+            var damageVars = card.CanonicalVars.OfType<DamageVar>().ToList();
+            if (hpLossVars.Count == 0 && damageVars.Count == 0 &&
+                !CardTurnEndInspector.DoesTurnEndInHandCauseHpLoss(card))
+            {
                 continue;
+            }
 
-            foreach (var hpLossVar in card.CanonicalVars.OfType<HpLossVar>())
+            foreach (var hpLossVar in hpLossVars)
             {
                 ApplyProjectedDamage(
                     projection,
@@ -205,7 +210,7 @@ internal static class IncomingDamageProjector
                 );
             }
 
-            foreach (var damageVar in card.CanonicalVars.OfType<DamageVar>())
+            foreach (var damageVar in damageVars)
             {
                 ApplyProjectedDamage(
                     projection,

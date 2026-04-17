@@ -36,3 +36,20 @@ Contributions should meet reasonable code quality standards. I'm happy to give f
 If a feature is too intrusive, it may be disabled by default with the option to enable it via the mod configuration menu. I will let you know beforehand if that would be the case.
 
 If you see features here that you'd like to incorporate into your own mod, feel free to do so. The code is open source. The only thing I ask is that you wait until this mod is released on the Workshop (once available) before releasing your own spin-off.
+
+## Maintenance Notes
+
+### Keep Running While Unfocused
+If the game appears to "pause" when the window loses focus on macOS, the effective fix is in [`src/BackgroundExecution.cs`](src/BackgroundExecution.cs).
+
+The issue was not just App Nap. Slay the Spire 2 also has its own background handlers:
+- `NBackgroundModeHandler` lowers FPS when `SettingsSave.LimitFpsInBackground` is enabled.
+- `NMuteInBackgroundHandler` fades audio out when `PrefsSave.MuteInBackground` is enabled.
+
+The working patch does four things:
+- disables Godot low processor mode
+- forces `LimitFpsInBackground = false`
+- forces `MuteInBackground = false`
+- patches `NBackgroundModeHandler` and `NMuteInBackgroundHandler` so their background enter/exit methods do nothing
+
+The stronger macOS `NSProcessInfo.beginActivityWithOptions(...)` call is still kept, but by itself it was not enough.
