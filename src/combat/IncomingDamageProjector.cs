@@ -34,6 +34,7 @@ internal static class IncomingDamageProjector
         ApplyOrbProjection(projection, player);
         ApplyTurnEndHandProjection(projection, player);
         ApplyAfterTurnEndProjection(projection, player);
+        ApplyEnemyTurnStartProjection(projection, creature);
         ApplyEnemyTurnProjection(projection, creature);
 
         return projection.GetDamageBreakdown();
@@ -305,6 +306,49 @@ internal static class IncomingDamageProjector
                     ApplyProjectedAttackHit(projection, playerCreature, attackIntent, enemy);
                 }
             }
+        }
+    }
+
+    private static void ApplyEnemyTurnStartProjection(DamageProjection projection, Creature playerCreature)
+    {
+        foreach (var enemy in playerCreature.CombatState!.HittableEnemies)
+        {
+            if (!projection.IsProjectedAlive(enemy))
+                continue;
+
+            ApplyEnemyPoisonProjection(projection, enemy);
+        }
+    }
+
+    private static void ApplyEnemyPoisonProjection(DamageProjection projection, Creature enemy)
+    {
+        var poison = enemy.GetPower<PoisonPower>();
+        if (poison is not { Amount: > 0 })
+            return;
+
+        var triggerCount = 1 + enemy.CombatState!.GetOpponentsOf(enemy)
+            .Where(projection.IsProjectedAlive)
+            .Sum(opponent => opponent.GetPowerAmount<AccelerantPower>());
+        var iterations = Math.Min(poison.Amount, triggerCount);
+
+        for (var triggerIndex = 0; triggerIndex < iterations; triggerIndex++)
+        {
+            if (!projection.IsProjectedAlive(enemy))
+                return;
+
+            var damage = poison.Amount - triggerIndex;
+            if (damage <= 0)
+                return;
+
+            ApplyProjectedDamage(
+                projection,
+                enemy,
+                damage,
+                ValueProp.Unblockable | ValueProp.Unpowered,
+                null,
+                null,
+                ProjectedDamageSource.None
+            );
         }
     }
 

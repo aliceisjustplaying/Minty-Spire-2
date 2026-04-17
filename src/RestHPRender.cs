@@ -46,6 +46,20 @@ public static class RestHPRender
         UpdateExtraLabel(__instance);
     }
 
+    [HarmonyPatch(typeof(Creature), nameof(Creature.HealInternal))]
+    [HarmonyPostfix]
+    public static void CatchOutOfCombatHeal(Creature __instance)
+    {
+        CatchHPChange(__instance);
+    }
+
+    [HarmonyPatch(typeof(Creature), nameof(Creature.SetCurrentHpInternal))]
+    [HarmonyPostfix]
+    public static void CatchOutOfCombatHpSet(Creature __instance)
+    {
+        CatchHPChange(__instance);
+    }
+
     /// <summary>
     ///     Creates the label and applies layout/styling. Uses %Visuals as the parent when available.
     /// </summary>
@@ -105,9 +119,7 @@ public static class RestHPRender
         var currentHp = player.Creature.CurrentHp;
         var maxHp = player.Creature.MaxHp;
 
-        var healAmount = HealRestSiteOption.GetBaseHealAmount(player.Creature);
-        healAmount = ApplyRelicHealModifiers(player, healAmount);
-
+        var healAmount = HealRestSiteOption.GetHealAmount(player);
         var healInt = (int)Math.Floor(healAmount);
         var healedHp = Math.Min(maxHp, currentHp + Math.Max(0, healInt));
 
@@ -115,20 +127,6 @@ public static class RestHPRender
         extra.Visible = true;
 
         ValidButtons.Register(button);
-    }
-
-    /// <summary>
-    ///     Runs all relic modifiers that affect rest site healing.
-    /// </summary>
-    private static decimal ApplyRelicHealModifiers(Player player, decimal baseAmount)
-    {
-        var amount = baseAmount;
-        var relics = player.Relics;
-
-        // Basically regal pillow
-        foreach (var relic in relics) amount = relic.ModifyRestSiteHealAmount(player.Creature, amount);
-
-        return amount;
     }
 
     /// <summary>

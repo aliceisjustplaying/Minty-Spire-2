@@ -200,6 +200,7 @@ public static class GloryTorchPatch
                 bool justPressed = isPressed && !wasPressed;
                 wasPressed = isPressed;
                 if (!justPressed) return;
+                if (!IsCombatInFocus(background)) return;
 
                 var mousePos = background.GetViewport().GetMousePosition();
                 var localMouse = capturedSceneRoot is CanvasItem ci
@@ -470,6 +471,7 @@ public static class GloryTorchPatch
             bool justPressed = isPressed && !wasPressed;
             wasPressed = isPressed;
             if (!justPressed) return;
+            if (!IsCombatInFocus(background)) return;
 
             var mousePos = background.GetViewport().GetMousePosition();
             var localMouse = firesNode is CanvasItem ci
@@ -555,5 +557,21 @@ public static class GloryTorchPatch
                 }
             }
         };
+    }
+
+    private static bool IsCombatInFocus(Node context)
+    {
+        var hoveredControl = context.GetViewport().GuiGetHoveredControl();
+        if (hoveredControl == null)
+            return true;
+
+        Node current = hoveredControl;
+        while (current != null)
+        {
+            if (current is NCombatRoom)
+                return true;
+            current = current.GetParent();
+        }
+        return false;
     }
 }
