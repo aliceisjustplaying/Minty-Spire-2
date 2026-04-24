@@ -54,7 +54,7 @@ public class MintyHooker : CustomSingletonModel
         return Task.CompletedTask;
     }
 
-    public override Task AfterSideTurnStart(CombatSide side, CombatState combatState)
+    public override Task AfterSideTurnStart(CombatSide side, ICombatState combatState)
     {
         if (side == CombatSide.Player)
             EndTurnRelicReminderService.NotifyRemindersMayHaveChanged();

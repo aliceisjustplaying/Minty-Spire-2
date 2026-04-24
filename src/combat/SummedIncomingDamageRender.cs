@@ -156,7 +156,7 @@ public static class SummedIncomingDamageRender
         if (label == null || !bar.Visible)
             return;
 
-        if (!Config.ShowIncomingDamage || CombatManager.Instance.IsEnemyTurnStarted)
+        if (!Config.ShowIncomingDamage || IsCombatPastPlayablePlayerTurn())
         {
             label.Visible = false;
             return;
@@ -267,6 +267,21 @@ public static class SummedIncomingDamageRender
     private static void RefreshAllLabels()
     {
         ValidBars.ForEachLive(RefreshVisibilityAndText);
+    }
+
+    private static bool IsCombatPastPlayablePlayerTurn()
+    {
+        var combatManager = CombatManager.Instance;
+        return combatManager.IsEnemyTurnStarted ||
+               combatManager.EndingPlayerTurnPhaseOne ||
+               combatManager.EndingPlayerTurnPhaseTwo;
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(CombatManager), nameof(CombatManager.EndPlayerTurnPhaseOneInternal))]
+    public static void CatchPlayerTurnEnding()
+    {
+        RefreshAllLabels();
     }
 
     /// <summary>

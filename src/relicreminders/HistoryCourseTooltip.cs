@@ -47,7 +47,7 @@ static class HistoryCourseTooltip
         }
     }
 
-    [HarmonyPatch(typeof(HistoryCourse), nameof(HistoryCourse.BeforePlayPhaseStart))]
+    [HarmonyPatch(typeof(HistoryCourse), nameof(HistoryCourse.AfterAutoPrePlayPhaseEntered))]
     [HarmonyPostfix]
     static void StopPulseOnTurnStart(HistoryCourse __instance)
     {
