@@ -81,7 +81,7 @@ internal static partial class IncomingDamageProjector
             ApplyProjectedDamageToEnemies(projection, screamingFlagon.DynamicVars.Damage.IntValue, ValueProp.Unpowered, playerCreature);
 
         if (player.GetRelic<StoneCalendar>() is { } stoneCalendar &&
-            playerCreature.CombatState.RoundNumber == stoneCalendar.DynamicVars["DamageTurn"].IntValue)
+            playerCreature.CombatState?.RoundNumber == stoneCalendar.DynamicVars["DamageTurn"].IntValue)
         {
             ApplyProjectedDamageToEnemies(projection, stoneCalendar.DynamicVars.Damage.IntValue, ValueProp.Unpowered, playerCreature);
         }

@@ -105,6 +105,9 @@ public class PaelsLookingEyePatch()
         if (__instance.relic is PaelsEye && __instance.ModelVisibility == ModelVisibility.Visible)
         {
             var icon_node = __instance._relicNode.GetChild(0) as TextureRect;
+            if (icon_node == null)
+                return;
+
             icon_node.Texture = PaelsEyeBase;
             if (HasLookingEyeScene(icon_node) == null)
                 icon_node.AddChild(LookingEyeScene.Instantiate());

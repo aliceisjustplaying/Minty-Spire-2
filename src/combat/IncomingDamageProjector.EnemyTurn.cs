@@ -9,12 +9,20 @@ internal static partial class IncomingDamageProjector
 {
     private static void ApplyEnemyTurnProjection(DamageProjection projection, Creature playerCreature)
     {
-        foreach (var enemy in playerCreature.CombatState!.HittableEnemies)
+        var combatState = playerCreature.CombatState;
+        if (combatState == null)
+            return;
+
+        foreach (var enemy in combatState.HittableEnemies)
         {
             if (!projection.IsProjectedAlive(enemy))
                 continue;
 
-            foreach (var intent in enemy.Monster.NextMove.Intents)
+            var nextMove = enemy.Monster?.NextMove;
+            if (nextMove == null)
+                continue;
+
+            foreach (var intent in nextMove.Intents)
             {
                 if (intent.IntentType is not (IntentType.Attack or IntentType.DeathBlow))
                     continue;
@@ -35,7 +43,11 @@ internal static partial class IncomingDamageProjector
 
     private static void ApplyEnemyTurnStartProjection(DamageProjection projection, Creature playerCreature)
     {
-        foreach (var enemy in playerCreature.CombatState!.HittableEnemies)
+        var combatState = playerCreature.CombatState;
+        if (combatState == null)
+            return;
+
+        foreach (var enemy in combatState.HittableEnemies)
         {
             if (!projection.IsProjectedAlive(enemy))
                 continue;
@@ -50,7 +62,11 @@ internal static partial class IncomingDamageProjector
         if (poison is not { Amount: > 0 })
             return;
 
-        var triggerCount = 1 + enemy.CombatState!.GetOpponentsOf(enemy)
+        var combatState = enemy.CombatState;
+        if (combatState == null)
+            return;
+
+        var triggerCount = 1 + combatState.GetOpponentsOf(enemy)
             .Where(projection.IsProjectedAlive)
             .Sum(opponent => opponent.GetPowerAmount<AccelerantPower>());
         var iterations = Math.Min(poison.Amount, triggerCount);

@@ -20,7 +20,7 @@ namespace MintySpire2.combat;
 public static class SummedIncomingDamageRender
 {
     private const string RightTextNodeName = "MintyIncomingDamageText";
-    private const float AbovePadding = 28f;
+    private const float RightPadding = 8f;
     
     private static readonly WeakNodeRegistry<NHealthBar> ValidBars = new();
 
@@ -69,20 +69,8 @@ public static class SummedIncomingDamageRender
     }
 
     /// <summary>
-    ///     When the creature bounds update, reposition the label relative to the creature instead of the HP bar.
-    /// </summary>
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(NCreature), "UpdateBounds", [typeof(Node)])]
-    public static void CatchCreatureBoundsChanged(NCreature __instance)
-    {
-        if (__instance.Entity?.Player == null)
-            return;
-
-        RefreshLabelPositionForCreature(__instance.Entity);
-    }
-
     /// <summary>
-    ///     Creates the label once and attach it near the HP bar container.
+    ///     Creates the label once and attaches it near the HP bar container.
     /// </summary>
     /// <returns>bool: Was label created</returns>
     private static bool CreateLabelIfNotExist(NHealthBar bar)
@@ -116,33 +104,22 @@ public static class SummedIncomingDamageRender
     }
 
     /// <summary>
-    ///     Positions the label above the creature hitbox so it remains visible while using a controller.
+    ///     Positions the label to the right of the HP bar.
     /// </summary>
     private static void RepositionLabel(NHealthBar bar, Vector2 newSize)
     {
         var label = GetLabel(bar);
         if (label == null) return;
 
-        // Positioning for the label.
-        var labelWidth = Math.Max(newSize.X + 90f, 230f);
-        var labelHeight = 76f;
+        var labelWidth = 90f;
+        var labelHeight = Math.Max(newSize.Y, 28f);
 
         label.Size = new Vector2(labelWidth, labelHeight);
-        var creatureNode = NCombatRoom.Instance?.GetCreatureNode(bar._creature);
-        if (creatureNode != null && label.GetParent() == creatureNode)
-        {
-            var hitbox = creatureNode.Hitbox;
-            label.Position = new Vector2(
-                hitbox.Position.X + (hitbox.Size.X - labelWidth) / 2f,
-                hitbox.Position.Y - labelHeight - AbovePadding
-            );
-            return;
-        }
 
         var container = bar.HpBarContainer;
         label.Position = new Vector2(
-            container.Position.X + (newSize.X - labelWidth) / 2f,
-            container.Position.Y - labelHeight - AbovePadding
+            container.Position.X + newSize.X + RightPadding,
+            container.Position.Y + (newSize.Y - labelHeight) / 2f
         );
     }
 
@@ -183,7 +160,7 @@ public static class SummedIncomingDamageRender
 
     private static Control GetLabelParent(NHealthBar bar)
     {
-        return NCombatRoom.Instance?.GetCreatureNode(bar._creature) ?? (bar.HpBarContainer.GetParent() as Control ?? bar);
+        return bar.HpBarContainer.GetParent() as Control ?? bar;
     }
 
     private static Label? GetLabel(NHealthBar bar)
@@ -191,15 +168,6 @@ public static class SummedIncomingDamageRender
         return GetLabelParent(bar).GetNodeOrNull<Label>(RightTextNodeName);
     }
 
-    private static void RefreshLabelPositionForCreature(Creature creature)
-    {
-        ValidBars.ForEachLive(bar =>
-        {
-            if (bar._creature == creature)
-                RepositionLabel(bar, bar.HpBarContainer.Size);
-        });
-    }
-    
     /// <summary>
     ///     Refresh labels when a creature death is fired to recalculate incoming damage immediately.
     /// </summary>

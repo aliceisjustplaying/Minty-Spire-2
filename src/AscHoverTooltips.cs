@@ -43,7 +43,9 @@ public static class AscHoverTooltips
         {
             if (!__instance.ShowTip)
                 return false;
-            NHoverTipSet.CreateAndShow(__instance, _myTips).GlobalPosition = __instance.GlobalPosition + new Vector2(0, __instance.Size.Y + 20);
+            var hoverTipSet = NHoverTipSet.CreateAndShow(__instance, _myTips);
+            if (hoverTipSet != null)
+                hoverTipSet.GlobalPosition = __instance.GlobalPosition + new Vector2(0, __instance.Size.Y + 20);
 
             return false;
         }

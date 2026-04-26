@@ -7,12 +7,12 @@ namespace MintySpire2.jokes;
 [HarmonyPatch(typeof(NMerchantRoom), "_Ready")]
 public static class MerchantCandlePatch
 {
-    private const bool ShowDebugHitboxes = false;
+    private static readonly bool ShowDebugHitboxes = false;
     private static readonly List<FireFadeState> _activeFades = new();
 
     private class FireFadeState
     {
-        public Node FireNode;
+        public required Node FireNode;
         public bool FadingOut;
         public float Timer;
         public float Duration;
@@ -20,7 +20,7 @@ public static class MerchantCandlePatch
 
     private class FireInfo
     {
-        public Node Node;
+        public required Node Node;
         public Vector2 LocalFlameCenter;
     }
 

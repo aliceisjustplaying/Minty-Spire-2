@@ -10,12 +10,16 @@ internal static partial class IncomingDamageProjector
 {
     private static void ApplyOrbProjection(DamageProjection projection, Player player)
     {
-        var orbQueue = player.PlayerCombatState.OrbQueue;
+        var orbQueue = player.PlayerCombatState?.OrbQueue;
+        var combatState = player.Creature.CombatState;
+        if (orbQueue == null || combatState == null)
+            return;
+
         var glassPassiveByOrb = new Dictionary<OrbModel, int>();
 
         foreach (var orb in orbQueue.Orbs.ToList())
         {
-            var triggerCount = Hook.ModifyOrbPassiveTriggerCount(player.Creature.CombatState, orb, 1, out _);
+            var triggerCount = Hook.ModifyOrbPassiveTriggerCount(combatState, orb, 1, out _);
             for (var triggerIndex = 0; triggerIndex < triggerCount; triggerIndex++)
             {
                 if (!projection.IsProjectedAlive(projection.Player))

@@ -11,12 +11,12 @@ namespace MintySpire2.jokes;
 [HarmonyPatch(typeof(NCombatBackground), "Create")]
 public static class GloryTorchPatch
 {
-    private const bool ShowDebugHitboxes = false;
+    private static readonly bool ShowDebugHitboxes = false;
 
     private static readonly List<TorchFadeState> _activeFades = new();
     private class TorchFadeState
     {
-        public Node Torch;
+        public required Node Torch;
         public bool FadingOut;
         public float Timer;
         public float Duration;
@@ -25,9 +25,9 @@ public static class GloryTorchPatch
     private static readonly List<ShaderFireFadeState> _activeShaderFades = new();
     private class ShaderFireFadeState
     {
-        public Sprite2D Sprite;
+        public required Sprite2D Sprite;
         public Vector2 OriginalScale;
-        public CpuParticles2D NearestLight;
+        public CpuParticles2D? NearestLight;
         public bool FadingOut;
         public float Timer;
         public float Duration;
@@ -315,13 +315,12 @@ public static class GloryTorchPatch
             }
         }
 
-        var fireRects = new List<(Sprite2D sprite, CpuParticles2D nearestLight, Rect2 rect)>();
+        var fireRects = new List<(Sprite2D sprite, CpuParticles2D? nearestLight, Rect2 rect)>();
 
-// Pre-compute which sprite is closest to each light (the "middle" flame)
         var lightOwner = new Dictionary<CpuParticles2D, Sprite2D>();
         foreach (var light in fireLights)
         {
-            Sprite2D closest = null;
+            Sprite2D? closest = null;
             float closestDist = float.MaxValue;
             foreach (var sprite in fireSprites)
             {
@@ -339,7 +338,7 @@ public static class GloryTorchPatch
         foreach (var sprite in fireSprites)
         {
             // Only pair this sprite with a light if it's that light's closest sprite
-            CpuParticles2D nearestLight = null;
+            CpuParticles2D? nearestLight = null;
             float nearestDist = float.MaxValue;
             foreach (var light in fireLights)
             {
