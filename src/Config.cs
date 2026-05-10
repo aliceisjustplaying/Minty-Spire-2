@@ -12,4 +12,15 @@ public class Config: SimpleModConfig
     
     [ConfigSection("misc")]
     public static bool ChangeRewardOrder { get; set; } = true;
+
+    public static bool ForceAeonglassAct3Boss { get; set; } = false;
+
+    public static AeonglassBossPlacement AeonglassBossPlacement { get; set; } = AeonglassBossPlacement.Random;
+}
+
+public enum AeonglassBossPlacement
+{
+    First,
+    Second,
+    Random
 }
