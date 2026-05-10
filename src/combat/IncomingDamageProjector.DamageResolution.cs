@@ -90,20 +90,25 @@ internal static partial class IncomingDamageProjector
 
         projection.SpendProjectedBlock(blockTarget, (int)blockedDamage);
 
-        var hpLoss = Math.Max(modifiedDamage - blockedDamage, 0m);
-        hpLoss = ApplyProjectedHpLossModifiersBeforeOsty(projection, target, hpLoss, props, dealer, cardSource);
+        var unblockedDamage = Math.Max(modifiedDamage - blockedDamage, 0m);
+        var hpLoss = ApplyProjectedHpLossModifiersBeforeOsty(projection, target, unblockedDamage, props, dealer, cardSource);
+
+        var hpLossTarget = GetProjectedUnblockedDamageTarget(projection, target, hpLoss, props);
+        var resolvedUnblockedDamage = ClampProjectedHpLoss(unblockedDamage);
+
         if (hpLoss <= 0)
         {
+            projection.TrackProjectedUnblockedDamage(hpLossTarget, resolvedUnblockedDamage);
             if (projection.IsProjectedAlive(target))
                 ApplyProjectedAfterDamageReceivedReactions(projection, target, (int)blockedDamage, props, dealer, source);
             return;
         }
 
-        var hpLossTarget = GetProjectedUnblockedDamageTarget(projection, target, hpLoss, props);
         hpLoss = ApplyProjectedHpLossModifiersAfterOsty(projection, hpLossTarget, hpLoss, props, dealer, cardSource);
 
         var resolvedHpLoss = ClampProjectedHpLoss(hpLoss);
         projection.TrackProjectedThreat(hpLossTarget, resolvedHpLoss, source);
+        projection.TrackProjectedUnblockedDamage(hpLossTarget, resolvedUnblockedDamage);
         var overkillDamage = projection.ApplyProjectedHpLoss(hpLossTarget, resolvedHpLoss, source);
         if (hpLossTarget == target || overkillDamage <= 0)
         {
@@ -115,6 +120,7 @@ internal static partial class IncomingDamageProjector
         var overkillHpLoss = ApplyProjectedHpLossModifiersAfterOsty(projection, target, overkillDamage, props, dealer, cardSource);
         var resolvedOverkillHpLoss = ClampProjectedHpLoss(overkillHpLoss);
         projection.TrackProjectedThreat(target, resolvedOverkillHpLoss, source);
+        projection.TrackProjectedUnblockedDamage(target, ClampProjectedHpLoss(overkillDamage));
         projection.ApplyProjectedHpLoss(target, resolvedOverkillHpLoss, source);
         if (projection.IsProjectedAlive(target))
             ApplyProjectedAfterDamageReceivedReactions(projection, target, (int)blockedDamage, props, dealer, source);

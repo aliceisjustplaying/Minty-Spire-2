@@ -24,9 +24,11 @@ internal static partial class IncomingDamageProjector
         {
             switch (listener)
             {
-                case TheBoot theBoot when dealer == theBoot.Owner.Creature && props.IsPoweredAttack():
-                    if (hpLoss is > 0m and < 5m)
-                        hpLoss = theBoot.DynamicVars["DamageMinimum"].BaseValue;
+                case TheBoot theBoot
+                    when dealer == theBoot.Owner.Creature && target != dealer && props.IsPoweredAttack():
+                    var damageMinimum = theBoot.DynamicVars["DamageMinimum"].BaseValue;
+                    if (hpLoss >= 1m && hpLoss < damageMinimum)
+                        hpLoss = damageMinimum;
                     break;
             }
         }
@@ -37,6 +39,11 @@ internal static partial class IncomingDamageProjector
             {
                 case HardenedShellPower hardenedShell when target == hardenedShell.Owner:
                     hpLoss = Math.Min(hpLoss, projection.GetRemainingHardenedShellProtection(target));
+                    if (dealer is { IsPlayer: true } && target != dealer &&
+                        dealer.Player?.GetRelic<TheBoot>() is { } theBootForShell)
+                    {
+                        hpLoss = Math.Max(hpLoss, theBootForShell.DynamicVars["DamageMinimum"].BaseValue);
+                    }
                     break;
             }
         }
@@ -56,6 +63,9 @@ internal static partial class IncomingDamageProjector
         if (hpLoss <= 0 || target.CombatState == null)
             return hpLoss;
 
+        // Iterate listeners in IterateHookListeners order to match Hook.ModifyHpLostAfterOsty,
+        // which applies modifiers in player.Relics order. A static order would diverge whenever
+        // the player picked up TungstenRod / BeatingRemnant in a different sequence.
         foreach (var listener in target.CombatState.IterateHookListeners())
         {
             switch (listener)

@@ -49,6 +49,8 @@ internal sealed partial class DamageProjection(Creature player)
 
     public bool ShouldApplyDiamondDiademProtection { get; set; }
 
+    public bool SkipEnemyTurn { get; set; }
+
     public int GetProjectedBlock(Creature creature)
     {
         return projectedBlockByCreature.GetValueOrDefault(creature, 0);
@@ -120,26 +122,25 @@ internal sealed partial class DamageProjection(Creature player)
         var overkillDamage = Math.Max(0, amount - actualHpLoss);
 
         projectedHpByCreature[creature] = currentHp - actualHpLoss;
-        TrackProjectedHpLoss(creature, actualHpLoss, source);
         return overkillDamage;
     }
 
-    private void TrackProjectedHpLoss(Creature creature, int amount, ProjectedDamageSource source)
+    public void TrackProjectedUnblockedDamage(Creature creature, int unblockedDamage)
     {
-        if (amount <= 0)
+        if (unblockedDamage <= 0)
             return;
 
         if (remainingHardenedShellProtectionByCreature.TryGetValue(creature, out var hardenedShellProtection) &&
             hardenedShellProtection != decimal.MaxValue)
         {
-            remainingHardenedShellProtectionByCreature[creature] = Math.Max(0m, hardenedShellProtection - amount);
+            remainingHardenedShellProtectionByCreature[creature] = Math.Max(0m, hardenedShellProtection - unblockedDamage);
         }
 
         if (creature != Player)
             return;
 
         if (remainingBeatingRemnantProtection != decimal.MaxValue)
-            remainingBeatingRemnantProtection = Math.Max(0m, remainingBeatingRemnantProtection - amount);
+            remainingBeatingRemnantProtection = Math.Max(0m, remainingBeatingRemnantProtection - unblockedDamage);
     }
 
     public int GetProjectedBufferCharges(Creature creature)

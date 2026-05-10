@@ -30,7 +30,13 @@ internal static partial class IncomingDamageProjector
             projection.AutoPlayProjectedAttackCards(stampedePower.Amount);
 
         if (player.GetRelic<PaelsEye>() is { } paelsEye && paelsEye.ShouldTakeExtraTurn(player))
+        {
+            // PaelsEye.BeforeTurnEndEarly exhausts the hand, but the rest of the turn-end
+            // hooks (Plating, Orichalcum, Hailstorm, etc.) still fire this turn. The extra
+            // turn replaces the upcoming enemy turn, so skip enemy-side projection.
             projection.ClearProjectedHand();
+            projection.SkipEnemyTurn = true;
+        }
 
         var hand = projection.GetProjectedHandCards();
 

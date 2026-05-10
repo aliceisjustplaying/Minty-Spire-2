@@ -17,8 +17,12 @@ internal static partial class IncomingDamageProjector
         ApplyOrbProjection(projection, player);
         ApplyTurnEndHandProjection(projection, player);
         ApplyAfterTurnEndProjection(projection, player);
-        ApplyEnemyTurnStartProjection(projection, creature);
-        ApplyEnemyTurnProjection(projection, creature);
+
+        if (!projection.SkipEnemyTurn)
+        {
+            ApplyEnemyTurnStartProjection(projection, creature);
+            ApplyEnemyTurnProjection(projection, creature);
+        }
 
         return projection.GetDamageBreakdown();
     }
