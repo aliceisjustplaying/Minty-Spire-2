@@ -2,6 +2,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
+using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Models.Relics;
 using MegaCrit.Sts2.Core.Random;
 
@@ -43,6 +44,10 @@ internal sealed partial class DamageProjection(Creature player)
 
     private int playerEnemyDamageThreat;
     private int playerSelfDamageThreat;
+    private bool playerProjectedFatal;
+    private bool playerProjectedRevive;
+    private bool projectedLizardTailUsed;
+    private bool projectedFairyInABottleUsed;
     private decimal remainingBeatingRemnantProtection = GetInitialBeatingRemnantProtection(player);
 
     public Creature Player { get; } = player;
@@ -121,7 +126,12 @@ internal sealed partial class DamageProjection(Creature player)
         var actualHpLoss = Math.Min(currentHp, amount);
         var overkillDamage = Math.Max(0, amount - actualHpLoss);
 
-        projectedHpByCreature[creature] = currentHp - actualHpLoss;
+        var nextHp = currentHp - actualHpLoss;
+        projectedHpByCreature[creature] = nextHp;
+
+        if (creature == Player && nextHp <= 0)
+            ApplyProjectedPlayerDeath();
+
         return overkillDamage;
     }
 
@@ -166,7 +176,55 @@ internal sealed partial class DamageProjection(Creature player)
 
     public DamageBreakdown GetDamageBreakdown()
     {
-        return new DamageBreakdown(playerEnemyDamageThreat, playerSelfDamageThreat);
+        return new DamageBreakdown(
+            playerEnemyDamageThreat,
+            playerSelfDamageThreat,
+            playerProjectedFatal,
+            playerProjectedRevive && !playerProjectedFatal
+        );
+    }
+
+    private void ApplyProjectedPlayerDeath()
+    {
+        if (!TryApplyProjectedLizardTail() && !TryApplyProjectedFairyInABottle())
+        {
+            playerProjectedFatal = true;
+            return;
+        }
+
+        playerProjectedRevive = true;
+    }
+
+    private bool TryApplyProjectedLizardTail()
+    {
+        var lizardTail = Player.Player?.GetRelic<LizardTail>();
+        if (lizardTail == null || lizardTail.IsUsedUp || lizardTail.WasUsed || projectedLizardTailUsed)
+            return false;
+
+        projectedLizardTailUsed = true;
+        projectedHpByCreature[Player] = GetHalfMaxHp();
+        return true;
+    }
+
+    private bool TryApplyProjectedFairyInABottle()
+    {
+        var player = Player.Player;
+        if (player == null || projectedFairyInABottleUsed || player.Potions.All(potion => potion is not FairyInABottle))
+            return false;
+
+        projectedFairyInABottleUsed = true;
+        projectedHpByCreature[Player] = GetThirdMaxHp();
+        return true;
+    }
+
+    private int GetHalfMaxHp()
+    {
+        return Math.Max(1, (int)Math.Ceiling(Player.MaxHp / 2m));
+    }
+
+    private int GetThirdMaxHp()
+    {
+        return Math.Max(1, (int)Math.Ceiling(Player.MaxHp * 0.3m));
     }
 
     private static decimal GetInitialBeatingRemnantProtection(Creature playerCreature)

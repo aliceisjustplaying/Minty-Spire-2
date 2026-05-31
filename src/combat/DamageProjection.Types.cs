@@ -6,13 +6,21 @@ internal enum ProjectedDamageSource
     Enemy,
     Self
 }
-internal readonly record struct DamageBreakdown(int EnemyDamage, int SelfDamage)
+internal readonly record struct DamageBreakdown(int EnemyDamage, int SelfDamage, bool IsLethal = false, bool IsRevived = false)
 {
     public int Total => EnemyDamage + SelfDamage;
     public bool HasDamage => Total > 0;
 
     public string ToDisplayText()
     {
-        return HasDamage ? $"{Total}\nA{EnemyDamage} S{SelfDamage}" : string.Empty;
+        if (!HasDamage)
+            return string.Empty;
+
+        return IsRevived switch
+        {
+            true => $"REVIVE\nA{EnemyDamage} S{SelfDamage}",
+            false when IsLethal => $"KO\nA{EnemyDamage} S{SelfDamage}",
+            _ => $"{Total}\nA{EnemyDamage} S{SelfDamage}"
+        };
     }
 }

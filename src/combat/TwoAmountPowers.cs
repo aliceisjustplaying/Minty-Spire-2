@@ -175,7 +175,7 @@ static class TwoAmountPowers
                 typeof(VoidFormPower).Method(nameof(VoidFormPower.BeforeSideTurnStart)),
                 typeof(JugglingPower).Method(nameof(JugglingPower.AfterApplied)),
                 typeof(JugglingPower).Method(nameof(JugglingPower.AfterCardPlayed)),
-                typeof(JugglingPower).Method(nameof(JugglingPower.AfterTurnEnd)),
+                typeof(JugglingPower).Method(nameof(JugglingPower.AfterSideTurnEnd)),
                 typeof(PaleBlueDotPower).Method(nameof(PaleBlueDotPower.ModifyHandDraw)),
                 typeof(ToricToughnessPower).Method(nameof(ToricToughnessPower.SetBlock)),
                 typeof(InfernoPower).Method(nameof(InfernoPower.IncrementSelfDamage)),

@@ -54,7 +54,7 @@ public class MintyHooker : CustomSingletonModel
         return Task.CompletedTask;
     }
 
-    public override Task AfterSideTurnStart(CombatSide side, ICombatState combatState)
+    public override Task AfterSideTurnStart(CombatSide side, IReadOnlyList<Creature> participants, ICombatState combatState)
     {
         if (side == CombatSide.Player)
             EndTurnRelicReminderService.NotifyRemindersMayHaveChanged();
@@ -67,7 +67,7 @@ public class MintyHooker : CustomSingletonModel
         return Task.CompletedTask;
     }
 
-    public override Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
+    public override Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
         if(side == CombatSide.Player)
             EndTurnRelicReminderService.NotifyRemindersMayHaveChanged();
